@@ -1,6 +1,6 @@
 require 'yaml'
 require 'thor'
-require "resque"
+require 'resque'
 
 module Resque
   # The command-line interface for Resque
