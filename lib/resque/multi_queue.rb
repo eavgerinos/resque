@@ -3,22 +3,24 @@ require 'redis-namespace'
 require 'thread'
 require 'mutex_m'
 
-module Resque
+class Resque
   ###
   # Holds multiple queues, allowing you to pop the first available job
   class MultiQueue
     include Mutex_m
 
+    attr_reader :client
+
     ###
     # Create a new MultiQueue using the +queues+ from the +redis+ connection
     # @param queues [Array<Resque::Queue>]
-    # @param redis [Redis::Namespace,Redis::Distributed]
-    def initialize(queues, redis)
-      super()
+    # @param client [Resque]
+    def initialize(queues, client)
+      super
 
-      @queues     = queues # since ruby 1.8 doesn't have Ordered Hashes
+      @queues     = queues
       @queue_hash = {}
-      @redis      = redis
+      @client     = client
 
       queues.each do |queue|
         key = queue.redis_name
@@ -29,13 +31,14 @@ module Resque
     # Factory method, given a list of queues, give us a
     # multiqueue
     # @param queues [Array<#to_s>]
+    # @param client [Resque]
     # @return [Resque::MultiQueue]
-    def self.from_queues(queues)
+    def self.from_queues(queues, client)
       new_queues = queues.map do |queue|
-        Queue.new(queue, Resque.backend.store, Resque.coder)
+        Queue.new(queue, client)
       end
 
-      new(new_queues, Resque.backend.store)
+      new(new_queues, client)
     end
 
     # Pop an item off one of the queues.  This method will block until an item
@@ -54,8 +57,7 @@ module Resque
             begin
               return [queue, queue.pop(true)]
             rescue ThreadError
-            end
-          end
+            end end
 
           raise ThreadError
         end
@@ -82,7 +84,7 @@ module Resque
     def poll(timeout)
       queue_names = @queues.map {|queue| queue.redis_name }
       if queue_names.any?
-        queue_name, payload = @redis.blpop(*(queue_names + [timeout.to_i]))
+        queue_name, payload = client.redis.blpop(*(queue_names + [timeout.to_i]))
         return unless payload
 
         synchronize do

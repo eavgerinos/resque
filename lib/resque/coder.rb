@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # An exception raised when the coder can't encode
   class EncodeException < StandardError; end
 

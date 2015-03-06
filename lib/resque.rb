@@ -25,28 +25,46 @@ require 'resque/hook_register'
 
 require 'forwardable'
 
-# Resque is the singleton from which all operations take place.
-# TODO: for resque-2.0.0 - break this functionality out into
-# something that can be instantiated.
-module Resque
-  extend self
+class Resque
 
   # List of class name suffixes which will be considered to indicate
   # a class capable of performing work
   SUFFIXES = %w(Job Worker).freeze unless defined?(SUFFIXES)
 
+  def self.logger
+    @logger ||= MonoLogger.new(STDOUT)
+  end
+
+  def self.logger=(logger)
+    @logger = logger
+  end
+
+  def stat
+    @stat ||= Stat.new(self)
+  end
+
+  # Get the current backend
+  # @return [Redis::Backend]
+  def backend
+    @backend ||= Backend.new(Resque.config.redis, Resque.logger)
+  end
+
+  def backend=(redis)
+    @backend = redis
+  end
+
   # Serialize an object with the current coder
   # @param object [Object] - the object you with to serialize
   # @return [String] - the serialized object
   def encode(object)
-    Resque.coder.encode(object)
+    coder.encode(object)
   end
 
   # Deserialize an object with the current coder
   # @param object [String] - the object you with to deserialize
   # @return [Object] - the deserialized object
   def decode(object)
-    Resque.coder.decode(object)
+    coder.decode(object)
   end
 
   # Set the config by overriding the current config with a hash
@@ -70,31 +88,25 @@ module Resque
     yield config
   end
 
-  # Get the current backend
-  # @return [Redis::Backend]
-  def backend
-    @backend ||= Backend.new(config.redis, Resque.logger)
-  end
-
   # Set the redis connection by creating a new Redis::Backend
   # @param server (see Redis::Backend::connect)
   # @return [Redis::Namespace,Redis::Distributed]
   def redis=(server)
-    config.redis = Backend.connect(server) unless server.nil?
+    Resque.config.redis = Backend.connect(server) unless server.nil?
 
     @queues = Hash.new do |h, name|
-      h[name] = Resque::Queue.new(name, config.redis, coder)
+      h[name] = Resque::Queue.new(name, self)
     end
 
-    @backend = Backend.new(config.redis, Resque.logger)
+    @backend = Backend.new(Resque.config.redis, Resque.logger)
 
-    config.redis
+    Resque.config.redis
   end
 
   # Returns information about the current Redis connection.
   # @return (see Resque::Config#redis_id)
   def redis_id
-    config.redis_id
+    Resque.config.redis_id
   end
 
   # Encapsulation of encode/decode. Overwrite this to use it across Resque.
@@ -111,9 +123,11 @@ module Resque
 
   extend ::Forwardable
 
-  @hook_register = HookRegister.new
+  def hook_register
+    @hook_register ||= HookRegister.new
+  end
 
-  def_delegators :@hook_register,
+  instance_delegate [
     :before_first_fork,
     :before_first_fork=,
     :before_fork,
@@ -127,7 +141,7 @@ module Resque
     :before_perform,
     :before_perform=,
     :after_perform,
-    :after_perform=
+    :after_perform= ] => :hook_register
 
   # @return [String]
   def to_s
@@ -268,7 +282,6 @@ module Resque
     @queues[name.to_s]
   end
 
-
   #
   # job shortcuts
   #
@@ -321,7 +334,7 @@ module Resque
       klass.send(hook, *args)
     end
 
-    return true
+    true
   end
 
   # This method can be used to conveniently remove a job from a queue.
@@ -441,7 +454,7 @@ module Resque
   def info
     {
       :pending   => pending_queues,
-      :processed => Stat[:processed],
+      :processed => stat[:processed],
       :queues    => queues.size,
       :workers   => Resque::WorkerRegistry.all.size.to_i,
       :working   => Resque::WorkerRegistry.working.size,
@@ -460,7 +473,7 @@ module Resque
   # The total number of failed jobs in the failed queue
   # @return [Integer]
   def failed_job_count
-    Resque.backend.store.llen(:failed).to_i
+    backend.store.llen(:failed).to_i
   end
 
   # The environment string
@@ -478,6 +491,3 @@ module Resque
     end
   end
 end
-
-# Log to STDOUT by default
-Resque.logger = MonoLogger.new(STDOUT)

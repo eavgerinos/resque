@@ -2,13 +2,15 @@ require 'test_helper'
 require 'resque/failure/redis_multi_queue'
 
 describe Resque::Failure::RedisMultiQueue do
+  let(:resque) { Resque.new }
+
   before do
     Resque::Failure.backend = Resque::Failure::RedisMultiQueue
   end
 
   after do
     Resque::Failure.backend = nil
-    Resque.backend.store.flushall
+    resque.backend.store.flushdb
   end
 
   describe '#requeue' do
@@ -18,7 +20,7 @@ describe Resque::Failure::RedisMultiQueue do
       failure = Resque::Failure::RedisMultiQueue.all(0, 1, :failed_failed).first
       assert_nil failure['retried_at']
 
-      Resque::Failure::RedisMultiQueue.requeue(0, :failed_failed)
+      Resque::Failure::RedisMultiQueue.requeue(resque, 0, :failed_failed)
 
       job = Resque::Job.reserve(:failed)
       assert_equal 'some_class', job.payload['class']
@@ -36,7 +38,7 @@ describe Resque::Failure::RedisMultiQueue do
       save_failure('queue1')
       save_failure('queue3')
 
-      Resque::Failure::RedisMultiQueue.requeue_queue('queue1')
+      Resque::Failure::RedisMultiQueue.requeue_queue(resque, 'queue1')
 
       2.times do
         job = Resque::Job.reserve('queue1')

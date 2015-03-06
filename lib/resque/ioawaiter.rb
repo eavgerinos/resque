@@ -1,5 +1,5 @@
 require 'resque/signal_trapper'
-module Resque
+class Resque
   # A Waiter class that relies on SIGCONT to unblock.
   # The duck-type that Resque::Worker needs as :awaiter
   class IOAwaiter

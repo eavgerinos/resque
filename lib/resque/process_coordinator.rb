@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # An interface for working with Resque Processes on the current machine.
   class ProcessCoordinator
     # Returns an Array of string pids of all the other workers on this

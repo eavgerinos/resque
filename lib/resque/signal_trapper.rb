@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # Helper for trapping signals.
   #
   #   Trap a signal (accepts same params as Signal#trap):

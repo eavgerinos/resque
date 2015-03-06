@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # A registry for hooks that are applied to jobs at various stages
   # of their execution.
   # @see {docs/HOOKS.md}

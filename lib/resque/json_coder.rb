@@ -1,7 +1,7 @@
 require 'resque/coder'
 require 'json'
 
-module Resque
+class Resque
   # The default coder for JSON serialization
   class JsonCoder < Coder
 

@@ -4,7 +4,7 @@ rescue LoadError
   raise "Can't find 'airbrake' gem. Please add it to your Gemfile or install it."
 end
 
-module Resque
+class Resque
   module Failure
     # Failure backend for Airbrake
     class Airbrake < Base

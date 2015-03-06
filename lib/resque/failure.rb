@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # The Failure module provides an interface for working with different
   # failure backends.
   #

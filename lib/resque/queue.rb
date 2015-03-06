@@ -3,7 +3,7 @@ require 'redis-namespace'
 require 'thread'
 require 'mutex_m'
 
-module Resque
+class Resque
   ###
   # Exception raised when trying to access a queue that's already destroyed
   class QueueDestroyed < RuntimeError; end
@@ -13,36 +13,36 @@ module Resque
   class Queue
     include Mutex_m
 
-    attr_reader :name, :redis_name
+    attr_reader :name, :redis_name, :client
 
     ###
     # Create a new Queue object with +name+ on +redis+ connection, and using
     # the +coder+ for encoding and decoding objects that are stored in redis.
-    def initialize name, redis, coder = Marshal
+    def initialize(name, client)
       super()
-      @name       = name
-      @redis_name = "queue:#{@name}"
-      @redis      = redis
-      @coder      = coder
-      @destroyed  = false
 
-      @redis.sadd(:queues, @name)
+      @name       = name
+      @client     = client
+      @redis_name = "queue:#{@name}"
+
+      client.backend.store.sadd(:queues, @name)
     end
 
     # Add +object+ to the queue
     # If trying to push to an already destroyed queue, it will raise a Resque::QueueDestroyed exception
-    def push object
+    def push(object)
       raise QueueDestroyed if destroyed?
 
       begin
         encoded_object = encode(object)
       rescue Resque::EncodeException => e
         Resque.logger.error "Invalid UTF-8 character in job: #{e.message}"
+
         return
       end
 
       synchronize do
-        @redis.rpush @redis_name, encoded_object
+        client.backend.store.rpush(@redis_name, encoded_object)
       end
     end
 
@@ -51,15 +51,15 @@ module Resque
 
     # Returns a list of objects in the queue.  This method is *not* available
     # on the stdlib Queue.
-    def slice start, length
+    def slice(start, length)
       if length == 1
         synchronize do
-          decode @redis.lindex @redis_name, start
+          decode(client.backend.store.lindex(redis_name, start))
         end
       else
         synchronize do
-          Array(@redis.lrange(@redis_name, start, start + length - 1)).map do |item|
-            decode item
+          Array(client.backend.store.lrange(redis_name, start, start + length - 1)).map do |item|
+            decode(item)
           end
         end
       end
@@ -70,16 +70,16 @@ module Resque
     #
     # Pass +true+ for a non-blocking pop.  If nothing is read on a non-blocking
     # pop, a ThreadError is raised.
-    def pop non_block = false
+    def pop(non_block=false)
       if non_block
         synchronize do
-          value = @redis.lpop(@redis_name)
+          value = client.backend.store.lpop(redis_name)
           raise ThreadError unless value
           decode value
         end
       else
         synchronize do
-          value = @redis.blpop(@redis_name, 1) until value
+          value = client.backend.store.blpop(redis_name, 1) until value
           decode value.last
         end
       end
@@ -87,13 +87,13 @@ module Resque
 
     # Get the length of the queue
     def length
-      @redis.llen @redis_name
+      client.backend.store.llen(@redis_name)
     end
     alias :size :length
 
     # Is the queue empty?
     def empty?
-      size == 0
+      size.zero?
     end
 
     # Deletes this Queue from redis. This method is *not* available on the
@@ -103,32 +103,33 @@ module Resque
     # B and you delete Queue A, pushing to Queue B will have unknown side
     # effects. Queue A will be marked destroyed, but Queue B will not.
     def destroy
-      @redis.pipelined do
-        @redis.del @redis_name
-        @redis.srem(:queues, @name)
+      client.backend.store.pipelined do
+        client.backend.store.del @redis_name
+        client.backend.store.srem(:queues, @name)
       end
+
       @destroyed = true
     end
 
     # returns +true+ if the queue is destroyed and +false+ if it isn't
     def destroyed?
-      @destroyed
+      @destroyed ||= false
     end
 
     # @overload (see Resque::Coder#encode)
     # @param (see Resque::Coder#encode)
     # @return (see Resque::Coder#encode)
     # @raise (see Resque::Coder#encode)
-    def encode object
-      @coder.dump object
+    def encode(object)
+      client.coder.dump(object)
     end
 
     # @overload (see Resque::Coder#decode)
     # @param (see Resque::Coder#decode)
     # @return (see Resque::Coder#decode)
     # @raise (see Resque::Coder#decode)
-    def decode object
-      @coder.load object
+    def decode(object)
+      client.coder.load(object)
     end
   end
 end

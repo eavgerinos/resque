@@ -2,7 +2,7 @@ require 'resque/core_ext/string'
 require 'resque/errors'
 require 'resque/job_performer'
 
-module Resque
+class Resque
   # A Resque::Job represents a unit of work. Each job lives on a
   # single queue and has an associated payload object. The payload
   # is a hash with two attributes: `class` and `args`. The `class` is
@@ -29,6 +29,8 @@ module Resque
     # This job's associated payload object.
     attr_reader :payload
 
+    attr_reader :client
+
     # @param queue [#to_s]
     # @param payload [Hash<String,Object>]
     # @option payload [#to_s]        'class' - *must* be constantizable into
@@ -36,9 +38,10 @@ module Resque
     # @option payload [Array<Object>] 'args' - an array of the jobs that will
     #                                          be passed to the job class'
     #                                          perform method.
-    def initialize(queue, payload)
+    def initialize(queue, payload, client)
       @queue = queue
       @payload = payload
+      @client = client
       @failure_hooks_ran = false
     end
 
@@ -52,11 +55,11 @@ module Resque
     # @param args [Array<Object>] #coder-serializable array of job arguments
     # @return (see #perform) if Resque::inline?
     # @return [void] unless Resque::inline?
-    def self.create(queue, klass, *args)
-      coder = Resque.coder
-      Resque.validate(klass, queue)
+    def self.create(client, queue, klass, *args)
+      coder = client.coder
+      client.validate(klass, queue)
 
-      if Resque.inline?
+      if client.inline?
         # Instantiating a Resque::Job and calling perform on it so callbacks run
         # decode(encode(args)) to ensure that args are normalized in the same
         # manner as a non-inline job
@@ -64,7 +67,7 @@ module Resque
 
         new(:inline, payload).perform
       else
-        Resque.push(queue, 'class' => klass.to_s, 'args' => args)
+        client.push(queue, 'class' => klass.to_s, 'args' => args)
       end
     end
 
@@ -92,9 +95,9 @@ module Resque
     # @param klass (see #process_queue)
     # @param args (see #process_queue) optional
     # @return [Integer] - the number of jobs destroyed
-    def self.destroy(queue, klass, *args)
-      coder = Resque.coder
-      redis = Resque.backend.store
+    def self.destroy(client, queue, klass, *args)
+      coder = client.coder
+      redis = client.backend.store
       klass = klass.to_s
 
       destroyed_count = 0
@@ -130,9 +133,9 @@ module Resque
     # @param klass (see #process_queue)
     # @param args (see #process_queue) optional
     # @return [Array<Resque::Job>]
-    def self.queued(queue, klass, *args)
-      coder = Resque.coder
-      redis = Resque.backend.store
+    def self.queued(client, queue, klass, *args)
+      coder = client.coder
+      redis = client.backend.store
       klass = klass.to_s
 
       jobs = process_queue(queue, coder, redis, klass, args) do |decoded, new_queue, temp_queue, requeue_queue|
@@ -147,9 +150,9 @@ module Resque
     # if any jobs are available. If not, returns nil.
     # @param queue (see Resque::pop)
     # @return [Resque::Job]
-    def self.reserve(queue)
-      if payload = Resque.pop(queue)
-        new(queue, payload)
+    def self.reserve(client, queue)
+      if payload = client.pop(queue)
+        new(queue, payload, client)
       end
     end
 

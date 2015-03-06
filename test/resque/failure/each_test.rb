@@ -2,6 +2,10 @@ require 'test_helper'
 require 'resque/failure/redis'
 
 describe Resque::Failure::Each do
+  before(:all) do
+    @resque ||= Resque.new
+  end
+
   after do
     Resque::Failure.clear
   end
@@ -78,8 +82,14 @@ describe Resque::Failure::Each do
 
   def save_failures(*classes)
     classes.each do |klass|
-      failure = Resque::Failure::Redis.new(Exception.new,
-                                           nil, :test, {'class' => klass})
+      failure = Resque::Failure::Redis.new(
+        Exception.new,
+        @resque,
+        nil,
+        :test,
+        {'class' => klass}
+      )
+
       failure.save
     end
   end

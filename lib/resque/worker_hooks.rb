@@ -1,15 +1,16 @@
-module Resque
+class Resque
   # Runs Resque hooks
   class WorkerHooks
-    attr_reader :logger
+    attr_reader :logger, :client
 
-    def initialize(logger)
+    def initialize(client, logger)
+      @client = client
       @logger = logger
     end
 
     # Runs a named hook, passing along any arguments.
     def run_hook(name, *args)
-      return unless hooks = Resque.send(name)
+      return unless hooks = client.send(name)
       msg = "Running #{name} hooks"
       msg << " with #{args.inspect}" if args.any?
       logger.info msg

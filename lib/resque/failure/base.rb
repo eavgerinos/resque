@@ -1,4 +1,4 @@
-module Resque
+class Resque
   module Failure
     # All Failure classes are expected to subclass Base.
     #
@@ -18,14 +18,17 @@ module Resque
       # The payload object associated with the failed job
       attr_accessor :payload
 
+      attr_accessor :client
+
       # @option options [Exception]           :exception - The Exception object
       # @option options [Resque::Worker]      :worker    - The Worker object who is
       #                                                    reporting the failure
       # @option options [String]              :queue     - The string name of the queue
       #                                                    from which the job was pulled
       # @option options [Hash<String,Object>] :payload   - The job's payload
-      def initialize(exception, worker, queue, payload)
+      def initialize(exception, client, worker, queue, payload)
         @exception = exception
+        @client    = client
         @worker    = worker
         @queue     = queue
         @payload   = payload

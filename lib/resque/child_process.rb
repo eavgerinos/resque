@@ -2,18 +2,19 @@ require 'resque/worker_hooks'
 require 'resque/signal_trapper'
 require 'time' # Time#iso8601
 
-module Resque
+class Resque
   # A child process processes a single job. It is created by a Resque Worker.
   class ChildProcess
 
     attr_reader :worker
     attr_reader :pid
     attr_reader :worker_hooks
+    attr_reader :client
 
     # @param worker [Resque::Worker]
-    def initialize(worker)
+    def initialize(client, worker)
       @worker = worker
-      @worker_hooks = WorkerHooks.new(logger)
+      @worker_hooks = WorkerHooks.new(client, logger)
     end
 
     # @param job [Resque::Job]

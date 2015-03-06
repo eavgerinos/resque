@@ -1,17 +1,21 @@
-module Resque
+class Resque
   # The stat subsystem. Used to keep track of integer counts.
   #
   #   Get a stat:  Stat[name]
   #   Incr a stat: Stat.incr(name)
   #   Decr a stat: Stat.decr(name)
   #   Kill a stat: Stat.clear(name)
-  module Stat
-    extend self
+  class Stat
+    attr_reader :client
+
+    def initialize(client)
+      @client = client
+    end
 
     # Direct access to the Redis instance.
     # @return [Redis::Namespace,Redis::Distributed]
     def redis
-      Resque.backend.store
+      client.backend.store
     end
 
     # Returns the int value of a stat, given a string stat name.

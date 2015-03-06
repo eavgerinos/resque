@@ -1,4 +1,4 @@
-module Resque
+class Resque
   module Failure
     # A Failure backend that uses multiple backends
     # delegates all queries to the first backend

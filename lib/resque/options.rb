@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # A collection of options for Resque
   # @todo reconcile with Resque::Config (issue #1080)
   class Options

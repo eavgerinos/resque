@@ -2,11 +2,13 @@ require 'yaml'
 require 'thor'
 require 'resque'
 
-module Resque
+class Resque
   # The command-line interface for Resque
   class CLI < Thor
     class_option :config,    :aliases => ["-c"], :type => :string
     class_option :redis,     :aliases => ["-R"], :type => :string
+
+    attr_reader :client
 
     def initialize(args = [], opts = {}, config = {})
       super(args, opts, config)
@@ -16,7 +18,9 @@ module Resque
         @options = @options.symbolize_keys.merge(config_options)
       end
 
-      Resque.redis = options[:redis] || "localhost:6379/resque"
+      @client = Resque.new
+
+      client.redis = options[:redis] || "localhost:6379/resque"
     end
 
     desc "work", "Start processing jobs."

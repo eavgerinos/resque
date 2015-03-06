@@ -10,6 +10,7 @@ Coveralls.wear!
 
 require 'minitest/autorun'
 require 'minitest/stub_const'
+require 'resque'
 
 ##
 # Add helper methods to Kernel

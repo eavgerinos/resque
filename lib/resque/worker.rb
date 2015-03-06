@@ -13,7 +13,7 @@ require 'resque/ioawaiter'
 require 'resque/options'
 require 'resque/signal_trapper'
 
-module Resque
+class Resque
   # A Resque Worker processes jobs. On platforms that support fork(2),
   # the worker will fork off a child to process each job. This ensures
   # a clean state when beginning the next job and cuts down on gradual
@@ -40,6 +40,9 @@ module Resque
     # @return [WorkerHooks]
     attr_reader :worker_hooks
 
+    # @return [Resque]
+    attr_reader :resque
+
     # Workers should be initialized with an array of string queue
     # names. The order is important: a Worker will check the first
     # queue given for a job. If none is found, it will check the
@@ -58,15 +61,16 @@ module Resque
     # @option options [#warn,#unknown,#error,#info,#debug] :logger duck-typed ::Logger
     # @option options [#await] :awaiter (IOAwaiter.new)
     # @option options [Resque::Backend] :client
-    def initialize(queues = [], options = {})
+    def initialize(resque, queues = [], options = {})
       @options = Options.new(options)
       @worker_queues = WorkerQueueList.new(queues)
       @shutdown = nil
       @paused = nil
       @logger = @options.delete(:logger)
-      @worker_hooks = WorkerHooks.new(logger)
+      @resque = resque
+      @worker_hooks = WorkerHooks.new(resque, logger)
 
-      @client = @options.fetch(:client) { Backend.new(Resque.backend.store, @logger) }
+      @client = @options.fetch(:client) { resque.backend }
 
       @awaiter = @options.fetch(:awaiter) { IOAwaiter.new }
 

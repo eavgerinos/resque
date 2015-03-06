@@ -1,4 +1,4 @@
-module Resque
+class Resque
   ##
   # Resque::Backend is a wrapper around all things Redis.
   #

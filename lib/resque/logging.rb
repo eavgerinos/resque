@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # Include this module in classes you wish to have logging facilities
   module Logging
     module_function

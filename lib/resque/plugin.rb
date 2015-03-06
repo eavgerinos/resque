@@ -1,4 +1,4 @@
-module Resque
+class Resque
   # A Namespace (and linting tools) for Resque Plugins.
   module Plugin
     extend self

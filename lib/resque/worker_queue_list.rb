@@ -1,6 +1,6 @@
 require 'set'
 
-module Resque
+class Resque
   # An interface for working with specified lists of queues.
   # @todo: [kill all singletons](#1015) WorkerQueueList#search_order ties directly
   #   into the Resque singleton for ::queues

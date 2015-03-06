@@ -3,12 +3,14 @@ require 'resque/cli'
 
 describe Resque::CLI do
 
+  let(:resque) { Resque.new }
+
   describe "#initialize" do
     it "uses a default redis without a specified option" do
       stubbed_redis = lambda { |server|
         assert_equal 'localhost:6379/resque', server
       }
-      Resque.stub(:redis=, stubbed_redis) do
+      resque.stub(:redis=, stubbed_redis) do
         Resque::CLI.new
       end
     end
